@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // TypeScript syntax (ES modules), output CommonJS
+    "module": "CommonJS",
+    "target": "ESNext",
+    "moduleResolution": "node",
+
+    // For Node.js types
+    "types": ["node"],
+
+    // Output helpers
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Type safety
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "strict": true,
+
+    // React (optional)
+    "jsx": "react-jsx",
+
+    // Skip checking library types for speed
+    // "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+
+  }
+}
