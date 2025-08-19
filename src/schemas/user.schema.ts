@@ -1,4 +1,4 @@
-import {z} from "zod"
+import {email, z} from "zod"
 
 export const userRoleEnum = z.enum(["ADMIN", "USER", "AGENT"]);
 
@@ -11,6 +11,11 @@ export const userSchema=z.object({
     ),
     phone:z.string().trim().min(5),
     role: userRoleEnum.optional(),
+})
+
+export const loginSchema=z.object({
+    email:z.email().lowercase().trim().nonoptional(),
+    password:z.string().min(5).max(20).nonempty()
 })
 
 export type UserSchema=z.infer<typeof userSchema>
