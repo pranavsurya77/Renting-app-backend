@@ -1,11 +1,40 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { ApiError } from "../utils/ApiError";
 import { ApiResponse } from "../utils/ApiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 import prisma from "../db";
-import jwt from "jsonwebtoken";
 import type { JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken"
+
+const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+};
+
+interface Token{
+    accessToken:string,
+    refreshToken:string
+}
+
+const ACCESS_SECRET=process.env.ACCESS_TOKEN_SECRET || "pranav";
+const REFRESH_SECRET=process.env.REFRESH_TOKEN_SECRET || "pranav";
+
+//generate access and refresh token
+const generateTokens=(async(payload:JwtPayload):Promise<Token>=>{
+    if(!ACCESS_SECRET || !REFRESH_SECRET){
+        throw new ApiError(404,"Token secrets missing")
+    }
+    let accessToken=jwt.sign(payload,ACCESS_SECRET,{expiresIn:"30m"})
+    let refreshToken=jwt.sign(payload,REFRESH_SECRET,{expiresIn:"10d"})
+
+    if(!accessToken || !refreshToken){
+        throw new ApiError(410,"Error while generating tokens")
+    }
+
+    return {accessToken,refreshToken}
+})
 
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
     const { name, email, password, phone, role } = req.body;
@@ -45,42 +74,65 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
     res.status(201).json(new ApiResponse(201, user, "User added successfully"));
 });
 
-const ACCESS_SECRET=process.env.ACCESS_TOKEN_SECRET || "pranav";
-const REFRESH_SECRET=process.env.REFRESH_TOKEN_SECRET || "pranav";
+export const loginUser = asyncHandler(async (req:Request, res:Response) => {
+    const { email, password } = req.body;
 
-const generateTokens=asyncHandler(async(payload:JwtPayload)=>{
-    if(!ACCESS_SECRET || !REFRESH_SECRET){
-        throw new ApiError(404,"Token secrets missing")
-    }
-    let accessToken=jwt.sign(payload,ACCESS_SECRET,{expiresIn:"30m"})
-    let refreshToken=jwt.sign(payload,REFRESH_SECRET,{expiresIn:"10d"})
+    // Find user by email
+    const user = await prisma.user.findUnique({
+        where: { email }
+    });
 
-    if(!accessToken || !refreshToken){
-        throw new ApiError(410,"Error while generating tokens")
+    if (!user) {
+        throw new ApiError(404, "User not found");
     }
 
-    return {accessToken,refreshToken}
-})
+    // Compare password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-export const loginUser=asyncHandler(async(req:Request,res:Response,next:NextFunction)=>{
-    const {email,password}=req.body
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Invalid credentials");
+    }
 
-    //finding user
-    const user=await prisma.user.findFirst({
-        where:{email,password}
+    // Generate tokens
+    const {accessToken,refreshToken} = await generateTokens({
+        id: user.id,
+        email: user.email
+    });
+
+    const addedToken=await prisma.token.create({
+        data:{
+            token:refreshToken,
+            userId:user.id,
+            expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+        }
+    })
+
+    if(!addedToken){
+        throw new ApiError(500,"Error while creating token")
+    }
+
+    // Send response with cookies
+    res.status(200)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .cookie("refreshToken", refreshToken, cookieOptions)
+        .json(new ApiResponse(200, { accessToken, refreshToken }, "User logged in successfully"));
+});
+
+
+export const logoutUser=asyncHandler(async(req:Request,res:Response)=>{
+
+    //get the user from auth middleware
+    const user=await prisma.user.findUnique({
+        where:{id:(req as any).id}
     })
 
     if(!user){
-        throw new ApiError(404,"User not found, Enter valid credentails")
+        throw new ApiError(403,"User not logged in")
     }
+    //delelte token from the db
+    const deleted=await prisma.token.deleteMany({
+        where:{userId:user.id}
+    })
 
-    //checking password
-    const isPassword=await bcrypt.compare(password,user.password);
-
-    if(!isPassword){
-        throw new ApiError(402,"Invalid credentails, Try again");
-    }
-
-    //create access and refresh token
-
+    res.status(200).json(new ApiResponse(200,null,"User logged out successfully"))
 })

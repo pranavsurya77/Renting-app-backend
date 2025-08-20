@@ -99,3 +99,7 @@ dist/
 # Temporary folders
 tmp/
 temp/
+
+
+.github/workflows
+

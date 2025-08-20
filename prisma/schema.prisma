@@ -74,11 +74,11 @@ model Message {
 }
 
 model Token {
-  id        Int      @id @default(autoincrement())
-  token     String?  @unique
+  id        Int       @id @default(autoincrement())
+  token     String    @unique
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  expiresAt DateTime
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
 }
