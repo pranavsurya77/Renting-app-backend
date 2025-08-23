@@ -3,7 +3,15 @@ import { User } from "@prisma/client";
 declare global {
     namespace Express {
         export interface Request {
-            user?: Omit<User, "password">;
+            user?: {
+                id: number;
+                name: string;
+                email: string;
+                role?: string;
+                phone: string;
+                createdAt?: Date;
+                updatedAt?: Date;
+            };
         }
     }
 }

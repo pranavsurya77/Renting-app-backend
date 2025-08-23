@@ -3,13 +3,13 @@ class ApiError extends Error {
     public statusCode: number,
     public message: string,
     public errors?: any,
-    public stack?: string,
+    stack?: string,
     public success: boolean = false
   ) {
     super(message);
     if (stack) {
       this.stack = stack;
-    } else {
+    }else {
       Error.captureStackTrace(this, this.constructor);
     }
   }
